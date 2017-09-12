@@ -1,15 +1,30 @@
 package msg
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"log"
 )
 
 type Msg struct {
 	info map[string]interface{}
 }
 
+func (mo *Msg) GetInfo() interface{} {
+	return mo.info
+}
+
 func (mo *Msg) GetParam(key string) interface{} {
-	return mo.info[key]
+	result, ok := mo.info["params"].(map[string]interface{})
+	if ok {
+		return result[key]
+	}
+	return nil
+}
+
+func (mo *Msg) GetCmd() interface{} {
+	return mo.info["cmd"]
 }
 
 func (mo *Msg) GetResult(key string) interface{} {
@@ -19,26 +34,39 @@ func (mo *Msg) GetResult(key string) interface{} {
 	}
 	return nil
 }
+func (mo *Msg) SetCmd(value interface{}) {
+	mo.info["cmd"] = value
+}
 
 func (mo *Msg) SetParam(key string, value interface{}) {
-	mo.info[key] = value
+	result, ok := mo.info["params"].(map[string]interface{})
+	if ok {
+		result[key] = value
+	}
 }
 
 func Pack(mo *Msg) ([]byte, error) {
 	return json.Marshal(mo.info)
 }
 
-func UnPack(data []byte) (*Msg, error) {
-	var msgInfo interface{}
-	err := json.Unmarshal(data, &msgInfo)
+func UnPack(data []byte) *Msg {
+	d := json.NewDecoder(bytes.NewReader(data))
+	d.UseNumber()
+	var x interface{}
+	if err := d.Decode(&x); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("decoded to %#v\n", x)
 
-	_msg := &Msg{info: msgInfo.(map[string]interface{})}
-	return _msg, err
+	_msg := &Msg{info: x.(map[string]interface{})}
+	return _msg
 }
 
 func NewMsgRequest(cmd string, action string) *Msg {
 	msg := &Msg{info: make(map[string]interface{})}
-	msg.SetParam("cmd", cmd)
+	msg.SetCmd(cmd)
+	msg.info["params"] = make(map[string]interface{})
+
 	msg.SetParam("action", action)
 	return msg
 }
